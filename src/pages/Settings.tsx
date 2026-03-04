@@ -28,7 +28,9 @@ export default function Settings() {
   const [editValue, setEditValue] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [timerSecondsDraft, setTimerSecondsDraft] = useState('5');
-  const [timerSaving, setTimerSaving] = useState(false);
+  const [timerOpacityDraft, setTimerOpacityDraft] = useState('0.75');
+  const [timerSecondsSaving, setTimerSecondsSaving] = useState(false);
+  const [timerOpacitySaving, setTimerOpacitySaving] = useState(false);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -65,6 +67,10 @@ export default function Settings() {
     const existingSeconds = settings.find((s) => s.setting_key === 'feed_swipe_timer_seconds')?.setting_value;
     if (existingSeconds !== undefined) {
       setTimerSecondsDraft(existingSeconds);
+    }
+    const existingOpacity = settings.find((s) => s.setting_key === 'feed_swipe_timer_opacity')?.setting_value;
+    if (existingOpacity !== undefined) {
+      setTimerOpacityDraft(existingOpacity);
     }
   }, [settings]);
 
@@ -108,6 +114,7 @@ export default function Settings() {
 
   const timerEnabled = Boolean(Number(flags.find((f) => f.flag_key === 'feed_swipe_timer_enabled')?.flag_value || 0));
   const timerSecondsCurrent = settings.find((s) => s.setting_key === 'feed_swipe_timer_seconds')?.setting_value || '5';
+  const timerOpacityCurrent = settings.find((s) => s.setting_key === 'feed_swipe_timer_opacity')?.setting_value || '0.75';
 
   const submitTimerSeconds = async () => {
     const parsed = Number(timerSecondsDraft);
@@ -116,15 +123,34 @@ export default function Settings() {
       return;
     }
     const value = Math.max(0, Math.min(60, Math.floor(parsed)));
-    setTimerSaving(true);
+    setTimerSecondsSaving(true);
     const r = await api('PUT', '/settings/feed_swipe_timer_seconds', { setting_value: String(value) });
-    setTimerSaving(false);
+    setTimerSecondsSaving(false);
     if (!r.success) {
       toast(r.error || 'Failed to save timer seconds', 'error');
       return;
     }
     setTimerSecondsDraft(String(value));
     toast('Swipe timer seconds updated');
+    void loadSettings();
+  };
+
+  const submitTimerOpacity = async () => {
+    const parsed = Number(timerOpacityDraft);
+    if (!Number.isFinite(parsed)) {
+      toast('Opacity must be a valid number', 'error');
+      return;
+    }
+    const value = Math.max(0.05, Math.min(1, parsed));
+    setTimerOpacitySaving(true);
+    const r = await api('PUT', '/settings/feed_swipe_timer_opacity', { setting_value: String(value) });
+    setTimerOpacitySaving(false);
+    if (!r.success) {
+      toast(r.error || 'Failed to save timer opacity', 'error');
+      return;
+    }
+    setTimerOpacityDraft(String(value));
+    toast('Swipe timer opacity updated');
     void loadSettings();
   };
 
@@ -150,6 +176,9 @@ export default function Settings() {
               <span style={{ color: 'var(--muted)', marginLeft: 10, fontSize: 12 }}>
                 Current seconds: {timerSecondsCurrent}
               </span>
+              <span style={{ color: 'var(--muted)', marginLeft: 10, fontSize: 12 }}>
+                Current opacity: {timerOpacityCurrent}
+              </span>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -170,9 +199,25 @@ export default function Settings() {
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => { void submitTimerSeconds(); }}
-              disabled={timerSaving}
+              disabled={timerSecondsSaving}
             >
-              {timerSaving ? 'Saving...' : 'Save Seconds'}
+              {timerSecondsSaving ? 'Saving...' : 'Save Seconds'}
+            </button>
+            <input
+              type="number"
+              min={0.05}
+              max={1}
+              step={0.05}
+              value={timerOpacityDraft}
+              onChange={(e) => setTimerOpacityDraft(e.target.value)}
+              style={{ width: 88 }}
+            />
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => { void submitTimerOpacity(); }}
+              disabled={timerOpacitySaving}
+            >
+              {timerOpacitySaving ? 'Saving...' : 'Save Opacity'}
             </button>
           </div>
         </div>
