@@ -27,6 +27,8 @@ export default function Settings() {
   const [editKey, setEditKey] = useState('');
   const [editValue, setEditValue] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [timerSecondsDraft, setTimerSecondsDraft] = useState('5');
+  const [timerSaving, setTimerSaving] = useState(false);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -58,6 +60,13 @@ export default function Settings() {
   useEffect(() => {
     void loadSettings();
   }, [loadSettings]);
+
+  useEffect(() => {
+    const existingSeconds = settings.find((s) => s.setting_key === 'feed_swipe_timer_seconds')?.setting_value;
+    if (existingSeconds !== undefined) {
+      setTimerSecondsDraft(existingSeconds);
+    }
+  }, [settings]);
 
   const toggleFlag = async (key: string, value: boolean) => {
     const r = await api('PUT', `/feature-flags/${encodeURIComponent(key)}`, { flag_value: value });
@@ -97,6 +106,28 @@ export default function Settings() {
     void loadSettings();
   };
 
+  const timerEnabled = Boolean(Number(flags.find((f) => f.flag_key === 'feed_swipe_timer_enabled')?.flag_value || 0));
+  const timerSecondsCurrent = settings.find((s) => s.setting_key === 'feed_swipe_timer_seconds')?.setting_value || '5';
+
+  const submitTimerSeconds = async () => {
+    const parsed = Number(timerSecondsDraft);
+    if (!Number.isFinite(parsed)) {
+      toast('Seconds must be a valid number', 'error');
+      return;
+    }
+    const value = Math.max(0, Math.min(60, Math.floor(parsed)));
+    setTimerSaving(true);
+    const r = await api('PUT', '/settings/feed_swipe_timer_seconds', { setting_value: String(value) });
+    setTimerSaving(false);
+    if (!r.success) {
+      toast(r.error || 'Failed to save timer seconds', 'error');
+      return;
+    }
+    setTimerSecondsDraft(String(value));
+    toast('Swipe timer seconds updated');
+    void loadSettings();
+  };
+
   return (
     <div className="settings-page">
       <div className="page-header">
@@ -105,6 +136,47 @@ export default function Settings() {
       </div>
 
       <h3 style={{ marginBottom: 16 }}>Feature Flags</h3>
+      <div className="table-wrap" style={{ marginBottom: 16, padding: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Feed Swipe Timer</div>
+            <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+              Lock swipe for a few seconds when a new video starts.
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <span className={`badge ${timerEnabled ? 'badge-green' : 'badge-red'}`}>
+                {timerEnabled ? 'ACTIVE' : 'OFF'}
+              </span>
+              <span style={{ color: 'var(--muted)', marginLeft: 10, fontSize: 12 }}>
+                Current seconds: {timerSecondsCurrent}
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className={`btn ${timerEnabled ? 'btn-danger' : 'btn-primary'} btn-sm`}
+              onClick={() => { void toggleFlag('feed_swipe_timer_enabled', !timerEnabled); }}
+            >
+              {timerEnabled ? 'Deactivate Timer' : 'Activate Timer'}
+            </button>
+            <input
+              type="number"
+              min={0}
+              max={60}
+              value={timerSecondsDraft}
+              onChange={(e) => setTimerSecondsDraft(e.target.value)}
+              style={{ width: 88 }}
+            />
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => { void submitTimerSeconds(); }}
+              disabled={timerSaving}
+            >
+              {timerSaving ? 'Saving...' : 'Save Seconds'}
+            </button>
+          </div>
+        </div>
+      </div>
       <div className="table-wrap" style={{ marginBottom: 28 }}>
         <table>
           <thead>
