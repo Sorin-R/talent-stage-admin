@@ -27,10 +27,10 @@ export default function Settings() {
   const [editKey, setEditKey] = useState('');
   const [editValue, setEditValue] = useState('');
   const [editSaving, setEditSaving] = useState(false);
-  const [timerSecondsDraft, setTimerSecondsDraft] = useState('5');
+  const [timerMsDraft, setTimerMsDraft] = useState('5000');
   const [timerOpacityDraft, setTimerOpacityDraft] = useState('0.75');
   const [timerVisibleSaving, setTimerVisibleSaving] = useState(false);
-  const [timerSecondsSaving, setTimerSecondsSaving] = useState(false);
+  const [timerMsSaving, setTimerMsSaving] = useState(false);
   const [timerOpacitySaving, setTimerOpacitySaving] = useState(false);
 
   const loadSettings = useCallback(async () => {
@@ -65,9 +65,17 @@ export default function Settings() {
   }, [loadSettings]);
 
   useEffect(() => {
-    const existingSeconds = settings.find((s) => s.setting_key === 'feed_swipe_timer_seconds')?.setting_value;
-    if (existingSeconds !== undefined) {
-      setTimerSecondsDraft(existingSeconds);
+    const existingMs = settings.find((s) => s.setting_key === 'feed_swipe_timer_ms')?.setting_value;
+    if (existingMs !== undefined) {
+      setTimerMsDraft(existingMs);
+    } else {
+      const existingSeconds = settings.find((s) => s.setting_key === 'feed_swipe_timer_seconds')?.setting_value;
+      if (existingSeconds !== undefined) {
+        const parsedSeconds = Number(existingSeconds);
+        if (Number.isFinite(parsedSeconds)) {
+          setTimerMsDraft(String(Math.max(0, Math.floor(parsedSeconds * 1000))));
+        }
+      }
     }
     const existingOpacity = settings.find((s) => s.setting_key === 'feed_swipe_timer_opacity')?.setting_value;
     if (existingOpacity !== undefined) {
@@ -115,7 +123,11 @@ export default function Settings() {
 
   const timerEnabled = Boolean(Number(flags.find((f) => f.flag_key === 'feed_swipe_timer_enabled')?.flag_value || 0));
   const timerVisible = Number(settings.find((s) => s.setting_key === 'feed_swipe_timer_visible')?.setting_value || '1') === 1;
-  const timerSecondsCurrent = settings.find((s) => s.setting_key === 'feed_swipe_timer_seconds')?.setting_value || '5';
+  const timerMsCurrent = settings.find((s) => s.setting_key === 'feed_swipe_timer_ms')?.setting_value
+    || String(Math.max(
+      0,
+      Math.floor(Number(settings.find((s) => s.setting_key === 'feed_swipe_timer_seconds')?.setting_value || '5') * 1000),
+    ));
   const timerOpacityCurrent = settings.find((s) => s.setting_key === 'feed_swipe_timer_opacity')?.setting_value || '0.75';
   const timerVisibleCurrent = timerVisible ? 'Visible' : 'Hidden';
 
@@ -131,22 +143,26 @@ export default function Settings() {
     void loadSettings();
   };
 
-  const submitTimerSeconds = async () => {
-    const parsed = Number(timerSecondsDraft);
+  const submitTimerMs = async () => {
+    const parsed = Number(timerMsDraft);
     if (!Number.isFinite(parsed)) {
-      toast('Seconds must be a valid number', 'error');
+      toast('Milliseconds must be a valid number', 'error');
       return;
     }
-    const value = Math.max(0, Math.min(60, Math.floor(parsed)));
-    setTimerSecondsSaving(true);
-    const r = await api('PUT', '/settings/feed_swipe_timer_seconds', { setting_value: String(value) });
-    setTimerSecondsSaving(false);
-    if (!r.success) {
-      toast(r.error || 'Failed to save timer seconds', 'error');
+    const valueMs = Math.max(0, Math.min(60000, Math.floor(parsed)));
+    const valueSecondsCompat = Math.floor(valueMs / 1000);
+    setTimerMsSaving(true);
+    const [msRes, secondsRes] = await Promise.all([
+      api('PUT', '/settings/feed_swipe_timer_ms', { setting_value: String(valueMs) }),
+      api('PUT', '/settings/feed_swipe_timer_seconds', { setting_value: String(valueSecondsCompat) }),
+    ]);
+    setTimerMsSaving(false);
+    if (!msRes.success || !secondsRes.success) {
+      toast(msRes.error || secondsRes.error || 'Failed to save timer milliseconds', 'error');
       return;
     }
-    setTimerSecondsDraft(String(value));
-    toast('Swipe timer seconds updated');
+    setTimerMsDraft(String(valueMs));
+    toast('Swipe timer milliseconds updated');
     void loadSettings();
   };
 
@@ -189,7 +205,7 @@ export default function Settings() {
                 {timerEnabled ? 'ACTIVE' : 'OFF'}
               </span>
               <span style={{ color: 'var(--muted)', marginLeft: 10, fontSize: 12 }}>
-                Current seconds: {timerSecondsCurrent}
+                Current duration (ms): {timerMsCurrent}
               </span>
               <span style={{ color: 'var(--muted)', marginLeft: 10, fontSize: 12 }}>
                 Current opacity: {timerOpacityCurrent}
@@ -209,17 +225,18 @@ export default function Settings() {
             <input
               type="number"
               min={0}
-              max={60}
-              value={timerSecondsDraft}
-              onChange={(e) => setTimerSecondsDraft(e.target.value)}
-              style={{ width: 88 }}
+              max={60000}
+              step={100}
+              value={timerMsDraft}
+              onChange={(e) => setTimerMsDraft(e.target.value)}
+              style={{ width: 108 }}
             />
             <button
               className="btn btn-ghost btn-sm"
-              onClick={() => { void submitTimerSeconds(); }}
-              disabled={timerSecondsSaving}
+              onClick={() => { void submitTimerMs(); }}
+              disabled={timerMsSaving}
             >
-              {timerSecondsSaving ? 'Saving...' : 'Save Seconds'}
+              {timerMsSaving ? 'Saving...' : 'Save Milliseconds'}
             </button>
             <input
               type="number"
