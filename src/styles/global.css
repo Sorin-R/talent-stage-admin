@@ -800,15 +800,44 @@ tr:hover td {
 
 .videos-page table th:nth-child(1),
 .videos-page table td:nth-child(1) {
+  width: 56px;
+  min-width: 56px;
+  text-align: center;
+}
+
+.videos-page table th:nth-child(2),
+.videos-page table td:nth-child(2) {
   width: 46ch;
   min-width: 46ch;
 }
 
-.videos-page table th:nth-child(9),
-.videos-page table td:nth-child(9) {
+.videos-page table th:nth-child(10),
+.videos-page table td:nth-child(10) {
   width: 34ch;
   min-width: 34ch;
   white-space: nowrap;
+}
+
+.videos-page .bulk-col input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.videos-page .videos-bulk-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.videos-page .videos-bulk-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.videos-page .videos-bulk-actions .btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .videos-page .thumb-cell > div {

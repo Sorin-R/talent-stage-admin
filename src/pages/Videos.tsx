@@ -56,6 +56,7 @@ export default function Videos() {
   const api = useApi();
   const { admin } = useAuth();
   const [videos, setVideos] = useState<Video[]>([]);
+  const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
   const [pagination, setPagination] = useState<PaginationData>({ total: 0, page: 1, limit: 20, totalPages: 0 });
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(true);
@@ -66,6 +67,7 @@ export default function Videos() {
   const [expandedTitles, setExpandedTitles] = useState<Set<string>>(new Set());
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
   const searchRef = useRef(search);
   searchRef.current = search;
 
@@ -90,6 +92,7 @@ export default function Videos() {
     }
 
     setVideos(r.data.items || []);
+    setSelectedVideoIds(new Set());
     setPagination({
       total: r.data.total,
       page: r.data.page,
@@ -162,6 +165,71 @@ export default function Videos() {
 
   const isPublic = (v: Video) => Boolean(v.is_public);
   const canDelete = admin?.role !== 'support';
+  const allVisibleSelected = videos.length > 0 && videos.every((v) => selectedVideoIds.has(v.id));
+
+  useEffect(() => {
+    if (!selectAllRef.current) return;
+    selectAllRef.current.indeterminate = selectedVideoIds.size > 0 && !allVisibleSelected;
+  }, [selectedVideoIds, allVisibleSelected]);
+
+  const toggleVideoSelection = (videoId: string) => {
+    setSelectedVideoIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(videoId)) next.delete(videoId);
+      else next.add(videoId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = () => {
+    setSelectedVideoIds((prev) => {
+      if (allVisibleSelected) return new Set();
+      const next = new Set(prev);
+      videos.forEach((v) => next.add(v.id));
+      return next;
+    });
+  };
+
+  const deleteSelectedVideos = () => {
+    if (!selectedVideoIds.size) return;
+    const selected = videos.filter((v) => selectedVideoIds.has(v.id));
+    if (!selected.length) return;
+
+    confirmDialog(
+      'Delete Selected Videos',
+      `This will permanently remove ${selected.length} selected videos.`,
+      async () => {
+        let deletedCount = 0;
+        const deletedIds = new Set<string>();
+        const failedTitles: string[] = [];
+
+        for (const video of selected) {
+          // eslint-disable-next-line no-await-in-loop
+          const r = await api('DELETE', `/videos/${video.id}`);
+          if (r.success) {
+            deletedCount += 1;
+            deletedIds.add(video.id);
+          } else {
+            failedTitles.push(video.title || video.id);
+          }
+        }
+
+        if (deletedCount > 0) {
+          setVideos((prev) => prev.filter((v) => !deletedIds.has(v.id)));
+          setSelectedVideoIds((prev) => {
+            const next = new Set(prev);
+            deletedIds.forEach((id) => next.delete(id));
+            return next;
+          });
+          toast(`Deleted ${deletedCount} video${deletedCount === 1 ? '' : 's'}`, 'success');
+        }
+
+        if (failedTitles.length > 0) {
+          toast(`Failed to delete ${failedTitles.length} video${failedTitles.length === 1 ? '' : 's'}`, 'error');
+        }
+      }
+    );
+  };
 
   const renderTitle = (video: Video) => {
     const raw = String(video.title || 'Untitled');
@@ -219,12 +287,36 @@ export default function Videos() {
           <option value="public">Public</option>
           <option value="hidden">Hidden</option>
         </select>
+        {canDelete && (
+          <div className="videos-bulk-actions">
+            <span className="videos-bulk-count">
+              {selectedVideoIds.size} selected
+            </span>
+            <button
+              type="button"
+              className="btn btn-danger btn-sm"
+              onClick={deleteSelectedVideos}
+              disabled={selectedVideoIds.size === 0}
+            >
+              Delete Selected
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
+              <th className="bulk-col">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectAllVisible}
+                  aria-label="Select all videos on page"
+                />
+              </th>
               <th>Video</th>
               <th>Category</th>
               <th>Views</th>
@@ -239,21 +331,29 @@ export default function Videos() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={9} className="loading-row"><div className="spinner" /></td>
+                <td colSpan={10} className="loading-row"><div className="spinner" /></td>
               </tr>
             )}
             {!loading && !!errorMsg && (
               <tr>
-                <td colSpan={9} className="empty-row">Failed to load</td>
+                <td colSpan={10} className="empty-row">Failed to load</td>
               </tr>
             )}
             {!loading && !errorMsg && videos.length === 0 && (
               <tr>
-                <td colSpan={9} className="empty-row">No videos found</td>
+                <td colSpan={10} className="empty-row">No videos found</td>
               </tr>
             )}
             {!loading && !errorMsg && videos.map((v) => (
               <tr key={v.id}>
+                <td className="bulk-col">
+                  <input
+                    type="checkbox"
+                    checked={selectedVideoIds.has(v.id)}
+                    onChange={() => toggleVideoSelection(v.id)}
+                    aria-label={`Select video ${v.title || v.id}`}
+                  />
+                </td>
                 <td>
                   <div className="thumb-cell">
                     {v.thumbnail_url ? (
