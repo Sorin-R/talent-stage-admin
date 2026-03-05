@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const ABS_HTTP_URL_RE = /^https?:\/\//i;
+const DATA_OR_BLOB_URL_RE = /^(?:data|blob):/i;
+const IMAGE_EXT_RE = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
 const rawApiBase = String(import.meta.env.VITE_API_URL || '/api/admin').trim();
 
 const normalizeApiBase = (base: string): string => {
@@ -28,8 +30,16 @@ export const API_ORIGIN = getApiOrigin();
 
 export function toMediaUrl(url: string | null | undefined): string {
   if (!url) return '';
-  if (/^https?:\/\//i.test(url)) return url;
-  const rel = url.startsWith('/') ? url : '/' + url;
+  if (ABS_HTTP_URL_RE.test(url) || DATA_OR_BLOB_URL_RE.test(url)) return url;
+
+  const clean = url.trim();
+  let rel = clean.startsWith('/') ? clean : '/' + clean;
+
+  // Backend may return avatar filename only (without uploads path).
+  if (!clean.startsWith('/') && !clean.includes('/') && IMAGE_EXT_RE.test(clean)) {
+    rel = '/uploads/avatars/' + clean;
+  }
+
   return API_ORIGIN ? API_ORIGIN + rel : rel;
 }
 
