@@ -269,10 +269,10 @@ export default function UserProfile() {
   /* ---- Render ---- */
 
   return (
-    <div className="page">
+    <div className="page user-profile-page">
       {/* Header */}
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="page-header user-profile-header">
+        <div className="user-profile-header-left">
           <button className="btn btn-ghost" onClick={() => navigate('/users')}>
             &larr; Back to Users
           </button>
