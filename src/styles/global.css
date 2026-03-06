@@ -778,6 +778,13 @@ tr:hover td {
   flex: 0 0 auto;
 }
 
+.action-btns {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .videos-page .table-wrap {
   overflow-x: auto;
   margin-bottom: 0;
