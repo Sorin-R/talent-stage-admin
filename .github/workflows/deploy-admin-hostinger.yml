@@ -69,10 +69,10 @@ jobs:
             printf '%s' "$1" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
           }
 
-          SSH_HOST="$(clean_one_line "${SSH_HOST:-}")"
-          SSH_PORT="$(clean_one_line "${SSH_PORT:-}")"
-          SSH_USER="$(clean_one_line "${SSH_USER:-}")"
-          ADMIN_DEPLOY_PATH="$(clean_one_line "${ADMIN_DEPLOY_PATH:-}")"
+          SSH_HOST="$(clean_one_line "${SSH_HOST:-89.116.105.105}")"
+          SSH_PORT="$(clean_one_line "${SSH_PORT:-65002}")"
+          SSH_USER="$(clean_one_line "${SSH_USER:-u428592730}")"
+          ADMIN_DEPLOY_PATH="$(clean_one_line "${ADMIN_DEPLOY_PATH:-/home/u428592730/domains/admin.web-demo.space/public_html}")"
 
           : "${SSH_HOST:?Missing SSH_HOST (secret or variable)}"
           : "${SSH_PORT:?Missing SSH_PORT (secret or variable)}"
