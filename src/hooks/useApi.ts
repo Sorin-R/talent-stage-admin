@@ -8,10 +8,26 @@ const CFSTREAM_DIRECT_RE = /^cfstream:([a-z0-9_-]+)$/i;
 const CFSTREAM_UPLOAD_PATH_RE = /\/uploads\/videos\/cfstream:([a-z0-9_-]+)(?:[/?#].*)?$/i;
 const rawApiBase = String(import.meta.env.VITE_API_URL || '/api/admin').trim();
 
+const withAdminSegment = (path: string): string => {
+  const clean = path.replace(/\/+$/, '');
+  if (clean === '' || clean === '/') return '/api/admin';
+  if (clean === '/api' || clean === '/api/') return '/api/admin';
+  if (clean.endsWith('/api/admin')) return clean;
+  return clean;
+};
+
 const normalizeApiBase = (base: string): string => {
-  if (ABS_HTTP_URL_RE.test(base)) return base.replace(/\/+$/, '');
-  const clean = base.replace(/^\/+/, '').replace(/\/+$/, '');
-  return '/' + clean;
+  if (ABS_HTTP_URL_RE.test(base)) {
+    try {
+      const parsed = new URL(base);
+      parsed.pathname = withAdminSegment(parsed.pathname);
+      return parsed.toString().replace(/\/+$/, '');
+    } catch {
+      return base.replace(/\/+$/, '');
+    }
+  }
+  const clean = '/' + base.replace(/^\/+/, '').replace(/\/+$/, '');
+  return withAdminSegment(clean);
 };
 
 export const ADMIN_API_BASE = normalizeApiBase(rawApiBase);
