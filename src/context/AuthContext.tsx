@@ -18,26 +18,51 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const safeGet = (key: string): string => {
+  try {
+    return localStorage.getItem(key) || '';
+  } catch {
+    return '';
+  }
+};
+
+const safeSet = (key: string, value: string): void => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore storage-denied environments
+  }
+};
+
+const safeRemove = (key: string): void => {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // ignore storage-denied environments
+  }
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState(() => localStorage.getItem('admin_token') || '');
+  const [token, setToken] = useState(() => safeGet('admin_token'));
   const [admin, setAdmin] = useState<AdminInfo | null>(() => {
     try {
-      return JSON.parse(localStorage.getItem('admin_info') || 'null');
+      const raw = safeGet('admin_info');
+      return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   });
 
   const login = useCallback((t: string, a: AdminInfo) => {
     setToken(t);
     setAdmin(a);
-    localStorage.setItem('admin_token', t);
-    localStorage.setItem('admin_info', JSON.stringify(a));
+    safeSet('admin_token', t);
+    safeSet('admin_info', JSON.stringify(a));
   }, []);
 
   const logout = useCallback(() => {
     setToken('');
     setAdmin(null);
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_info');
+    safeRemove('admin_token');
+    safeRemove('admin_info');
   }, []);
 
   return (
