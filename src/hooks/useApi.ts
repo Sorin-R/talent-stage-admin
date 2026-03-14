@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 const ABS_HTTP_URL_RE = /^https?:\/\//i;
 const DATA_OR_BLOB_URL_RE = /^(?:data|blob):/i;
 const IMAGE_EXT_RE = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
+const CFSTREAM_DIRECT_RE = /^cfstream:([a-z0-9_-]+)$/i;
+const CFSTREAM_UPLOAD_PATH_RE = /\/uploads\/videos\/cfstream:([a-z0-9_-]+)(?:[/?#].*)?$/i;
 const rawApiBase = String(import.meta.env.VITE_API_URL || '/api/admin').trim();
 
 const normalizeApiBase = (base: string): string => {
@@ -28,11 +30,24 @@ const getApiOrigin = (): string => {
 
 export const API_ORIGIN = getApiOrigin();
 
+function toCloudflareStreamUrl(raw: string): string {
+  const clean = raw.trim();
+  const directMatch = clean.match(CFSTREAM_DIRECT_RE);
+  if (directMatch?.[1]) return `https://iframe.videodelivery.net/${directMatch[1]}`;
+
+  const pathMatch = clean.match(CFSTREAM_UPLOAD_PATH_RE);
+  if (pathMatch?.[1]) return `https://iframe.videodelivery.net/${pathMatch[1]}`;
+
+  return '';
+}
+
 export function toMediaUrl(url: string | null | undefined): string {
   if (!url) return '';
-  if (ABS_HTTP_URL_RE.test(url) || DATA_OR_BLOB_URL_RE.test(url)) return url;
-
   const clean = url.trim();
+  const cfUrl = toCloudflareStreamUrl(clean);
+  if (cfUrl) return cfUrl;
+
+  if (ABS_HTTP_URL_RE.test(clean) || DATA_OR_BLOB_URL_RE.test(clean)) return clean;
   let rel = clean.startsWith('/') ? clean : '/' + clean;
 
   // Backend may return avatar filename only (without uploads path).
