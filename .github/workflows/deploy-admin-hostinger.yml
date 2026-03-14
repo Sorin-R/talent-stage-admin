@@ -1,4 +1,5 @@
 name: Deploy Admin to Hostinger
+# noop: keep this comment to allow explicit retrigger via workflow-file commit
 
 on:
   workflow_dispatch:
