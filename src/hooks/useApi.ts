@@ -6,7 +6,18 @@ const DATA_OR_BLOB_URL_RE = /^(?:data|blob):/i;
 const IMAGE_EXT_RE = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
 const CFSTREAM_DIRECT_RE = /^cfstream:([a-z0-9_-]+)$/i;
 const CFSTREAM_UPLOAD_PATH_RE = /\/uploads\/videos\/cfstream:([a-z0-9_-]+)(?:[/?#].*)?$/i;
-const rawApiBase = String(import.meta.env.VITE_API_URL || '/api/admin').trim();
+
+const getDefaultAdminApiBase = (): string => {
+  if (typeof window !== 'undefined') {
+    const host = String(window.location.hostname || '').toLowerCase();
+    if (host === 'admin.web-demo.space') {
+      return 'https://api.web-demo.space/api/admin';
+    }
+  }
+  return '/api/admin';
+};
+
+const rawApiBase = String(import.meta.env.VITE_API_URL || getDefaultAdminApiBase()).trim();
 
 const withAdminSegment = (path: string): string => {
   const clean = path.replace(/\/+$/, '');
